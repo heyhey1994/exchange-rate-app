@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Exchange Rate Table</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f9fafb; }
+    table { border-collapse: collapse; width: 100%; max-width: 800px; margin-top: 16px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    th { background: #e2e8f0; }
+    input { padding: 4px; }
+    .top-inputs { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .top-inputs label { display: flex; align-items: center; gap: 4px; }
+    #factor { width: 60px; }
+    #addRowBtn { margin-top: 12px; padding: 6px 12px; cursor: pointer; }
+    .copyBtn, .delBtn { padding: 4px 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>Exchange Rate Calculator</h2>
+
+  <div class="top-inputs">
+    <label>Factor: <input type="number" id="factor" value="1.1" step="0.01"></label>
+    <label>CNY Rate: <input type="number" id="cnyRate" value="3650"></label>
+    <label>USDT Rate: <input type="number" id="usdtRate" value="26912"></label>
+  </div>
+
+  <table id="resultTable">
+    <tr>
+      <th>Item name</th>
+      <th>VND</th>
+      <th>CNY</th>
+      <th>USDT</th>
+      <th>Copy</th>
+      <th>Delete</th>
+    </tr>
+  </table>
+
+  <button id="addRowBtn">➕ Add row</button>
+
+  <script>
+    const factorInput = document.getElementById('factor');
+    const cnyRateInput = document.getElementById('cnyRate');
+    const usdtRateInput = document.getElementById('usdtRate');
+    const table = document.getElementById('resultTable');
+    const addRowBtn = document.getElementById('addRowBtn');
+
+    function update() {
+      const factor = parseFloat(factorInput.value) || 1.1;
+      const cnyRate = parseFloat(cnyRateInput.value) || 1;
+      const usdtRate = parseFloat(usdtRateInput.value) || 1;
+
+      [...table.querySelectorAll("tr.data-row")].forEach(row => {
+        const vndInput = row.querySelector(".vndInput");
+        const cnyCell = row.querySelector(".cny");
+        const usdtCell = row.querySelector(".usdt");
+
+        const vnd = parseFloat(vndInput.value) || 0;
+        const cny = (vnd * factor / cnyRate).toFixed(2);
+        const usdt = (vnd * factor / usdtRate).toFixed(2);
+
+        cnyCell.textContent = cny;
+        usdtCell.textContent = usdt;
+      });
+
+      saveData();
+    }
+
+    function addRow(name="Item", vnd="") {
+      const row = document.createElement("tr");
+      row.classList.add("data-row");
+      row.innerHTML = `
+        <td><input type="text" class="nameInput" value="${name}"></td>
+        <td><input type="number" class="vndInput" value="${vnd}" placeholder="Enter VND"></td>
+        <td class="cny">0</td>
+        <td class="usdt">0</td>
+        <td><button class="copyBtn">Copy</button></td>
+        <td><button class="delBtn">Delete</button></td>
+      `;
+      table.appendChild(row);
+
+      row.querySelector(".nameInput").addEventListener("input", update);
+      row.querySelector(".vndInput").addEventListener("input", update);
+      row.querySelector(".copyBtn").addEventListener("click", () => copyRow(row));
+      row.querySelector(".delBtn").addEventListener("click", () => {
+        row.remove();
+        update();
+      });
+
+      update();
+    }
+
+    function copyRow(row) {
+      const name = row.querySelector(".nameInput").value || "Item";
+      const cny = row.querySelector(".cny").textContent;
+      const usdt = row.querySelector(".usdt").textContent;
+      const text = `${name} - CNY ${cny} - USDT ${usdt}`;
+      navigator.clipboard.writeText(text);
+    }
+
+    function saveData() {
+      const data = {
+        factor: factorInput.value,
+        cnyRate: cnyRateInput.value,
+        usdtRate: usdtRateInput.value,
+        rows: [...table.querySelectorAll("tr.data-row")].map(r => ({
+          name: r.querySelector(".nameInput").value,
+          vnd: r.querySelector(".vndInput").value
+        }))
+      };
+      localStorage.setItem("exchangeData", JSON.stringify(data));
+    }
+
+    function loadData() {
+      const raw = localStorage.getItem("exchangeData");
+      if (!raw) { addRow("Item"); return; }
+      try {
+        const data = JSON.parse(raw);
+        factorInput.value = data.factor || 1.1;
+        cnyRateInput.value = data.cnyRate || 3650;
+        usdtRateInput.value = data.usdtRate || 26912;
+        (data.rows || []).forEach(r => addRow(r.name, r.vnd));
+      } catch (e) { console.error(e); }
+    }
+
+    addRowBtn.addEventListener("click", () => addRow("Item"));
+    [factorInput, cnyRateInput, usdtRateInput].forEach(el => {
+      el.addEventListener("input", update);
+    });
+
+    loadData();
+    update();
+  </script>
+</body>
+</html>
